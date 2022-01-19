@@ -3,19 +3,34 @@ const router = express.Router();
 
 const { postSchema } = require('../../validation');
 
-const { Contact } = require('../../model');
+const { Contact } = require('../../models');
+const { authenticate } = require("../../middlewares");
 // const contactsOperations = require('../../model/index')
 
-router.get('/', async (req, res, next) => {
+router.get('/', authenticate, async (req, res, next) => {
+  const { page = 1, limit = 20, favorite } = req.query;
   try {
-    const contacts = await Contact.find()
+
+    const { _id } = req.user;
+    const skip = (page - 1) * limit
+    const contacts = await Contact.find(
+
+      { owner: _id },
+      "-createdAt -updatedAt",
+      { skip, limit: +limit }
+    )
+    if (favorite) {
+      const filterContacts = contacts.filter((contact) => contact.favorite);
+      res.json(filterContacts);
+      return;
+    }
     res.json({ contacts })
   } catch (err) {
     next(err)
   }
 })
 
-router.get('/:contactId', async (req, res, next) => {
+router.get('/:contactId', authenticate, async (req, res, next) => {
   try {
     const { contactId
     } = req.params;
@@ -31,7 +46,7 @@ router.get('/:contactId', async (req, res, next) => {
 
 })
 
-router.post('/', async (req, res, next) => {
+router.post('/', authenticate, async (req, res, next) => {
 
 
   const { error } = postSchema.validate(req.body);
@@ -44,19 +59,22 @@ router.post('/', async (req, res, next) => {
       // error.status = 400;
       // throw error
     }
-
-    const contacts = await Contact.create(req.body);
+    const { _id } = req.user;
+    const contacts = await Contact.create({ ...req.body, owner: _id });
     res.status(201).json({ contacts })
 
   } catch (err) {
 
-    next(err)
+    if (err.message.includes("validation failed")) {
+      err.status = 400;
+    }
+    next(err);
   }
 
 
 })
 
-router.delete('/:contactId', async (req, res, next) => {
+router.delete('/:contactId', authenticate, async (req, res, next) => {
   try {
     const { contactId } = req.params;
     const contacts = await Contact.findByIdAndDelete(contactId);
@@ -74,7 +92,7 @@ router.delete('/:contactId', async (req, res, next) => {
 
 })
 
-router.put('/:contactId', async (req, res, next) => {
+router.put('/:contactId', authenticate, async (req, res, next) => {
   try {
     const { error } = contactsSchema.validate(req.body);
     if (error) {
@@ -98,7 +116,7 @@ router.put('/:contactId', async (req, res, next) => {
   }
 });
 
-router.patch('/:contactId/favorite', async (req, res, next) => {
+router.patch('/:contactId/favorite', authenticate, async (req, res, next) => {
   try {
     const { contactId } = req.params;
     const { favorite } = req.body;

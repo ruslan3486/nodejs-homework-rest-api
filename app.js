@@ -1,27 +1,37 @@
-const express = require('express')
-const logger = require('morgan')
-const cors = require('cors')
+const fs = require("fs");
+const path = require("path");
+const express = require("express");
+const logger = require("morgan");
+const cors = require("cors");
+require("dotenv").config();
 
-require('dotenv').config();
+const contactsRouter = require("./routes/api/contacts");
+const authRouter = require("./routes/api/auth");
+const usersRouter = require("./routes/api/users");
 
-const contactsRouter = require('./routes/api/contacts')
+const app = express();
+const formatsLogger = app.get("env") === "development" ? "dev" : "short";
+const accessLogStream = fs.createWriteStream(
+  path.join(__dirname, "server.log"),
+  { flags: "a" }
+);
 
-const app = express()
+app.use(logger("combined", { stream: accessLogStream }));
+app.use(logger(formatsLogger));
+app.use(cors());
+app.use(express.json());
 
-const formatsLogger = app.get('env') === 'development' ? 'dev' : 'short'
+app.use("/api/auth", authRouter);
+app.use("/api/contacts", contactsRouter);
+app.use("/api/users", usersRouter);
 
-app.use(logger(formatsLogger))
-app.use(cors())
-app.use(express.json())
-
-app.use('/api/contacts', contactsRouter)
-
-app.use((req, res) => {
-  res.status(404).json({ message: 'Not found' })
-})
+app.use((_, res) => {
+  res.status(404).json({ message: "Not found" });
+});
 
 app.use((err, req, res, next) => {
-  res.status(500).json({ message: err.message })
-})
+  const { status = 500, message = "Server error" } = err;
+  res.status(status).json({ message });
+});
 
-module.exports = app
+module.exports = app;
