@@ -7,7 +7,7 @@ const { joiRegisterSchema, joiLoginSchema } = require("../../models/user");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken")
 const router = express.Router();
-
+const gravatar = require("gravatar");
 const { SECRET_KEY } = process.env;
 
 router.post("/signup", async (req, res, next) => {
@@ -27,8 +27,8 @@ router.post("/signup", async (req, res, next) => {
         }
         const salt = await bcrypt.genSalt(10);
         const hashPassword = await bcrypt.hash(password, salt);
-
-        const newUser = await User.create({ name, email, password: hashPassword })
+        const avatarURL = gravatar.url(email);
+        const newUser = await User.create({ name, email, password: hashPassword, avatarURL })
         res.status(201).json({
             user: {
                 name: newUser.name,
