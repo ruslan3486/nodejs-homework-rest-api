@@ -6,6 +6,7 @@ const path = require("path");
 const router = express.Router();
 const fs = require("fs/promises");
 const avatarsDir = path.join(__dirname, "../../", "public", "avatars");
+const Jimp = require("jimp");
 
 router.get("/current", authenticate, async (req, res, next) => {
     const { email, subscription } = req.user;
@@ -29,6 +30,13 @@ router.patch("/avatars", authenticate, upload.single("avatar"), async (req, res,
     const newFleName = `${req.user._id}.${extension}`;
     const fileUpload = path.join(avatarsDir, newFleName);
     await fs.rename(tempUpload, fileUpload);
+    Jimp.read(fileUpload)
+        .then((file) => {
+            return file.contain(250, 250).write(fileUpload);
+        })
+        .catch((err) => {
+            console.error(err.message);
+        });
     const avatarURL = path.join("avatars", newFleName);
     await User.findByIdAndUpdate(req.user._id, { avatarURL }, { new: true });
     res.json({ avatarURL })
