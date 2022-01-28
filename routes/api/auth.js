@@ -1,14 +1,15 @@
 const express = require('express');
 const Joi = require("joi");
+const { nanoid } = require("nanoid");
 const { BadRequest, Conflict, Unauthorized } = require("http-errors");
-
+const { sendEmail } = require("../../helpers")
 const { User } = require("../../models");
 const { joiRegisterSchema, joiLoginSchema } = require("../../models/user");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken")
 const router = express.Router();
 const gravatar = require("gravatar");
-const { SECRET_KEY } = process.env;
+const { SECRET_KEY, SITE_NAME } = process.env;
 
 router.post("/signup", async (req, res, next) => {
     const { name, email, password } = req.body;
@@ -27,8 +28,16 @@ router.post("/signup", async (req, res, next) => {
         }
         const salt = await bcrypt.genSalt(10);
         const hashPassword = await bcrypt.hash(password, salt);
+        const verificationToken = nanoid();
         const avatarURL = gravatar.url(email);
-        const newUser = await User.create({ name, email, password: hashPassword, avatarURL })
+        const newUser = await User.create({ name, email, verificationToken, password: hashPassword, avatarURL })
+
+        const data = {
+            to: email,
+            subject: "Подтверждение email",
+            html: `<a target="_blank" href="${SITE_NAME}/users/verify/${verificationToken}">Подтвердить email</a>`
+        }
+
         res.status(201).json({
             user: {
                 name: newUser.name,
